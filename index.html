@@ -14,7 +14,7 @@
             padding: 30px; box-sizing: border-box; text-transform: uppercase;
         }
 
-        #top-bar { display: flex; justify-content: space-between; align-items: flex-start; }
+        #top-bar { display: flex; justify-content: space-between; align-items: flex-start; pointer-events: auto; }
         
         .panel { background: rgba(10, 10, 20, 0.8); border: 2px solid #ec4899; padding: 15px 25px; border-radius: 8px; box-shadow: 0 0 15px rgba(236, 72, 153, 0.5); text-shadow: 0 0 5px #ec4899; }
         
@@ -24,13 +24,19 @@
         #speedometer { font-size: 3.5rem; font-weight: bold; color: #38bdf8; text-shadow: 0 0 10px #38bdf8; text-align: right; }
         #speed-label { font-size: 1rem; color: #bae6fd; }
 
-        #controls { align-self: center; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; border: 1px solid #333; color: #888; font-size: 0.8rem; letter-spacing: 2px;}
+        .checkbox-container {
+            margin-top: 15px; display: flex; align-items: center; gap: 10px; cursor: pointer;
+            color: #ef4444; font-weight: bold; font-size: 1.1rem; text-shadow: 0 0 8px #ef4444;
+        }
+        .checkbox-container input { width: 20px; height: 20px; accent-color: #ef4444; cursor: pointer; }
+
+        #controls { align-self: center; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 20px; border: 1px solid #333; color: #888; font-size: 0.8rem; letter-spacing: 2px; pointer-events: none; }
         .highlight { color: #fff; font-weight: bold; }
         
-        #drift-alert { 
+        #alert-text { 
             position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 3rem; color: #facc15; font-weight: bold; font-style: italic;
-            text-shadow: 0 0 20px #f59e0b; opacity: 0; transition: opacity 0.2s;
+            font-size: 3.5rem; color: #facc15; font-weight: bold; font-style: italic;
+            text-shadow: 0 0 20px #f59e0b; opacity: 0; transition: opacity 0.2s; pointer-events: none; text-align: center;
         }
     </style>
 </head>
@@ -39,8 +45,13 @@
     <div id="ui-layer">
         <div id="top-bar">
             <div class="panel">
-                <h1>Neon Drift</h1>
+                <h1>racer</h1>
                 <p>Distance: <span id="distance" style="color:#fff;">0</span> m</p>
+                
+                <label class="checkbox-container">
+                    <input type="checkbox" id="obstacle-toggle">
+                    OBSTACLES
+                </label>
             </div>
             <div class="panel" style="border-color: #38bdf8; box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);">
                 <div id="speedometer">0</div>
@@ -48,7 +59,7 @@
             </div>
         </div>
         
-        <div id="drift-alert">DRIFTING!</div>
+        <div id="alert-text">DRIFTING!</div>
 
         <div id="controls">
             <span class="highlight">W</span> Accelerate | <span class="highlight">A/D</span> Steer | <span class="highlight">S</span> Brake | <span class="highlight">SPACE</span> Drift
@@ -58,9 +69,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
     <script>
-        // --- 1. THREE.JS SETUP ---
         const scene = new THREE.Scene();
-        scene.fog = new THREE.FogExp2(0x050510, 0.008); // Synthwave dark purple fog
+        scene.fog = new THREE.FogExp2(0x050510, 0.015);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -68,7 +78,6 @@
         renderer.setClearColor(scene.fog.color);
         document.body.appendChild(renderer.domElement);
 
-        // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
         scene.add(ambientLight);
         const dirLight = new THREE.DirectionalLight(0xff00aa, 1);
@@ -78,245 +87,227 @@
         blueLight.position.set(100, 50, 100);
         scene.add(blueLight);
 
-        // --- 2. BUILD THE F1 CAR ---
         const carGroup = new THREE.Group();
         scene.add(carGroup);
 
-        // Materials
-        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.2, metalness: 0.8 }); // Pink Chrome
+        const bodyMat = new THREE.MeshStandardMaterial({ color: 0xec4899, roughness: 0.2, metalness: 0.8 }); 
         const blackMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9 });
         const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0x333333 });
-        const glowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 }); // Cyan neon
+        const glowMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 }); 
 
-        // Chassis
-        const chassisGeo = new THREE.BoxGeometry(1.2, 0.5, 4.5);
-        const chassis = new THREE.Mesh(chassisGeo, bodyMat);
-        chassis.position.y = 0.4;
-        carGroup.add(chassis);
+        const chassis = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.5, 4.5), bodyMat);
+        chassis.position.y = 0.4; carGroup.add(chassis);
 
-        // Nose
-        const noseGeo = new THREE.BoxGeometry(0.8, 0.3, 1.8);
-        const nose = new THREE.Mesh(noseGeo, bodyMat);
-        nose.position.set(0, 0.25, -3.1);
-        carGroup.add(nose);
+        const nose = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.3, 1.8), bodyMat);
+        nose.position.set(0, 0.25, -3.1); carGroup.add(nose);
 
-        // Front Wing
-        const fWingGeo = new THREE.BoxGeometry(2.4, 0.1, 0.6);
-        const fWing = new THREE.Mesh(fWingGeo, whiteMat);
-        fWing.position.set(0, 0.15, -3.8);
-        carGroup.add(fWing);
+        const fWing = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.1, 0.6), whiteMat);
+        fWing.position.set(0, 0.15, -3.8); carGroup.add(fWing);
 
-        // Rear Wing
-        const rWingGeo = new THREE.BoxGeometry(2.2, 0.1, 0.8);
-        const rWing = new THREE.Mesh(rWingGeo, whiteMat);
-        rWing.position.set(0, 1.1, 1.8);
-        carGroup.add(rWing);
+        const rWing = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.1, 0.8), whiteMat);
+        rWing.position.set(0, 1.1, 1.8); carGroup.add(rWing);
+        
         const rWingSupport = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.7, 0.4), blackMat);
-        rWingSupport.position.set(0, 0.7, 1.8);
-        carGroup.add(rWingSupport);
+        rWingSupport.position.set(0, 0.7, 1.8); carGroup.add(rWingSupport);
 
-        // Cockpit
         const cockpit = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.4, 1.2), blackMat);
-        cockpit.position.set(0, 0.7, 0.2);
-        carGroup.add(cockpit);
+        cockpit.position.set(0, 0.7, 0.2); carGroup.add(cockpit);
 
-        // Wheels
         const wheelGeo = new THREE.CylinderGeometry(0.4, 0.4, 0.3, 16);
         wheelGeo.rotateZ(Math.PI / 2);
         const wheels = [];
-        const wheelPositions = [
-            [-1.1, 0.4, -2.5], [1.1, 0.4, -2.5], // Front
-            [-1.1, 0.4, 1.5], [1.1, 0.4, 1.5]    // Rear
-        ];
+        const wheelPositions = [ [-1.1, 0.4, -2.5], [1.1, 0.4, -2.5], [-1.1, 0.4, 1.5], [1.1, 0.4, 1.5] ];
+        
         wheelPositions.forEach(pos => {
             const wheel = new THREE.Mesh(wheelGeo, blackMat);
             wheel.position.set(...pos);
             carGroup.add(wheel);
             wheels.push(wheel);
-            // Neon rim
             const rim = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.05, 8, 16), glowMat);
             rim.rotateY(Math.PI / 2);
             rim.position.set(pos[0] > 0 ? 0.16 : -0.16, 0, 0);
             wheel.add(rim);
         });
 
-        // --- 3. THE INFINITE TRACK ---
-        // We simulate infinite movement by moving the track lines towards the camera, 
-        // while the car stays relatively centered on the Z axis.
-        
-        // Ground Plane
-        const groundGeo = new THREE.PlaneGeometry(200, 200);
+        const groundGeo = new THREE.PlaneGeometry(500, 500);
         const groundMat = new THREE.MeshStandardMaterial({ color: 0x050510, roughness: 1 });
         const ground = new THREE.Mesh(groundGeo, groundMat);
         ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.1;
         scene.add(ground);
 
-        // Grid / Track Lines
-        const lines = [];
-        const lineGeo = new THREE.BoxGeometry(0.2, 0.1, 10);
-        const lineMat = new THREE.MeshBasicMaterial({ color: 0xec4899 }); // Pink lines
-        
-        for (let i = 0; i < 40; i++) {
-            const lineL = new THREE.Mesh(lineGeo, lineMat);
-            lineL.position.set(-6, 0, -i * 10);
-            scene.add(lineL);
-            lines.push(lineL);
+        const seed1 = Math.random() * 1000;
+        const seed2 = Math.random() * 1000;
+        let distanceTraveled = 0;
+        const trackWidth = 7;
 
-            const lineR = new THREE.Mesh(lineGeo, lineMat);
-            lineR.position.set(6, 0, -i * 10);
-            scene.add(lineR);
-            lines.push(lineR);
+        function getTrackCenter(zOffset) {
+            let globalZ = distanceTraveled - zOffset;
+            return Math.sin(globalZ * 0.003 + seed1) * 25 + Math.sin(globalZ * 0.0015 + seed2) * 35;
         }
 
-        // --- 4. PARTICLE SYSTEM (SKID MARKS) ---
-        const particles = [];
-        const particleGeo = new THREE.PlaneGeometry(0.4, 0.4);
-        const particleMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 });
+        const trackMarkers = [];
+        const markerGeo = new THREE.BoxGeometry(0.4, 0.2, 4);
+        const markerMat = new THREE.MeshBasicMaterial({ color: 0xec4899 }); 
         
-        function spawnSkidMark(x, z) {
-            const p = new THREE.Mesh(particleGeo, particleMat);
-            p.rotation.x = -Math.PI / 2;
-            p.position.set(x, 0.05, z);
-            scene.add(p);
-            particles.push({ mesh: p, life: 1.0 });
+        for (let i = 0; i < 60; i++) {
+            let zPos = 10 - (i * 4);
+            
+            let mLeft = new THREE.Mesh(markerGeo, markerMat);
+            scene.add(mLeft);
+            trackMarkers.push({ mesh: mLeft, z: zPos, sideOffset: -trackWidth });
+
+            let mRight = new THREE.Mesh(markerGeo, markerMat);
+            scene.add(mRight);
+            trackMarkers.push({ mesh: mRight, z: zPos, sideOffset: trackWidth });
         }
 
-        // --- 5. PHYSICS & CONTROLS ---
+        const obstacleToggle = document.getElementById('obstacle-toggle');
+        let obstacles = [];
+        const obsGeo = new THREE.BoxGeometry(2, 1.5, 2);
+        const obsMat = new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xaa0000 }); 
+
         const keys = { w: false, a: false, s: false, d: false, space: false };
-        window.addEventListener('keydown', e => { 
-            if(e.code === 'KeyW') keys.w = true;
-            if(e.code === 'KeyA') keys.a = true;
-            if(e.code === 'KeyS') keys.s = true;
-            if(e.code === 'KeyD') keys.d = true;
-            if(e.code === 'Space') keys.space = true;
-        });
-        window.addEventListener('keyup', e => {
-            if(e.code === 'KeyW') keys.w = false;
-            if(e.code === 'KeyA') keys.a = false;
-            if(e.code === 'KeyS') keys.s = false;
-            if(e.code === 'KeyD') keys.d = false;
-            if(e.code === 'Space') keys.space = false;
-        });
+        window.addEventListener('keydown', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = true; if(e.code==='Space') keys.space = true; });
+        window.addEventListener('keyup', e => { if(keys.hasOwnProperty(e.key.toLowerCase())) keys[e.key.toLowerCase()] = false; if(e.code==='Space') keys.space = false; });
 
         let speed = 0;
         let maxSpeed = 3.0;
         let acceleration = 0.02;
         let friction = 0.008;
         let steeringAngle = 0;
-        let carRotation = 0; // Visual rotation
-        
-        let distanceTraveled = 0;
+        let carRotation = 0; 
+        let crashed = false;
         
         const uiSpeed = document.getElementById('speedometer');
         const uiDist = document.getElementById('distance');
-        const driftAlert = document.getElementById('drift-alert');
+        const alertText = document.getElementById('alert-text');
 
-        // --- 6. MAIN LOOP ---
         function animate() {
             requestAnimationFrame(animate);
 
-            // Acceleration & Braking
-            if (keys.w) speed += acceleration;
-            else if (keys.s) speed -= acceleration * 1.5; // Stronger brakes
-            else speed -= friction; // Coasting
+            let currentCenter = getTrackCenter(0);
+            let distFromCenter = Math.abs(carGroup.position.x - currentCenter);
+            let isOffTrack = distFromCenter > trackWidth;
 
-            // Drift mechanic modifiers
-            let currentTurnSpeed = 0.03;
-            let grip = 0.1; // How fast the car aligns with its visual rotation
-
-            if (keys.space && speed > 0.5) {
-                // Drifting!
-                currentTurnSpeed = 0.06; // Turn faster
-                grip = 0.02; // Slide more
-                speed -= friction * 2; // Lose speed while drifting
-                driftAlert.style.opacity = 1;
-
-                // Spawn skid marks at rear wheels
-                spawnSkidMark(carGroup.position.x - 1.1, carGroup.position.z + 1.5);
-                spawnSkidMark(carGroup.position.x + 1.1, carGroup.position.z + 1.5);
-            } else {
-                driftAlert.style.opacity = 0;
+            if (isOffTrack && !crashed) {
+                maxSpeed = 1.0;          
+                friction = 0.05;         
+                alertText.innerText = "OFF TRACK";
+                alertText.style.color = "#ef4444";
+                alertText.style.opacity = 1;
+            } else if (!crashed) {
+                maxSpeed = 3.0;
+                friction = 0.008;
+                if (!keys.space) alertText.style.opacity = 0; 
             }
 
-            // Clamping speed
-            speed = Math.max(0, Math.min(speed, maxSpeed));
+            if (!crashed) {
+                if (keys.w) speed += acceleration;
+                else if (keys.s) speed -= acceleration * 1.5; 
+                else speed -= friction; 
+            } else {
+                speed -= 0.05; 
+            }
 
-            // Steering
-            if (speed > 0.1) {
+            let currentTurnSpeed = 0.035;
+            let grip = 0.1; 
+
+            if (keys.space && speed > 0.5 && !isOffTrack && !crashed) {
+                currentTurnSpeed = 0.07; 
+                grip = 0.02; 
+                speed -= friction * 2; 
+                alertText.innerText = "DRIFTING!";
+                alertText.style.color = "#facc15";
+                alertText.style.opacity = 1;
+            }
+
+            speed = Math.max(0, Math.min(speed, maxSpeed)); 
+
+            if (speed > 0.1 && !crashed) {
                 if (keys.a) carRotation += currentTurnSpeed;
                 if (keys.d) carRotation -= currentTurnSpeed;
             }
+            if (!keys.a && !keys.d && !crashed) carRotation *= 0.92; 
             
-            // Auto-center steering when not pressing keys
-            if (!keys.a && !keys.d) {
-                carRotation *= 0.95; 
-            }
+            if(!crashed) steeringAngle += (carRotation - steeringAngle) * grip;
 
-            // Apply Grip (Velocity vector follows car rotation smoothly)
-            steeringAngle += (carRotation - steeringAngle) * grip;
-
-            // Move the car left/right based on steering angle
             carGroup.position.x -= Math.sin(steeringAngle) * speed;
-            
-            // Apply visual rotation to the 3D model
             carGroup.rotation.y = carRotation;
 
-            // Spin the wheels visually
             wheels.forEach(w => w.rotation.x -= speed * 0.5);
-            // Turn front wheels
-            wheels[0].rotation.z = carRotation * 1.5;
-            wheels[1].rotation.z = carRotation * 1.5;
+            wheels[0].rotation.z = carRotation * 1.5; wheels[1].rotation.z = carRotation * 1.5;
 
-            // Move the track to simulate forward movement
             let zMovement = Math.cos(steeringAngle) * speed;
             distanceTraveled += zMovement;
 
-            lines.forEach(line => {
-                line.position.z += zMovement;
-                // If line goes behind camera, wrap it far ahead
-                if (line.position.z > 20) {
-                    line.position.z -= 400;
-                }
+            trackMarkers.forEach(m => {
+                m.z += zMovement;
+                if (m.z > 10) m.z -= 240; 
+                m.mesh.position.z = m.z;
+                m.mesh.position.x = getTrackCenter(m.z) + m.sideOffset; 
             });
 
-            // Update Skid marks
-            for (let i = particles.length - 1; i >= 0; i--) {
-                let p = particles[i];
-                p.mesh.position.z += zMovement; // Move with the ground
-                p.life -= 0.01;
-                p.mesh.material.opacity = p.life;
-                if (p.life <= 0 || p.mesh.position.z > 20) {
-                    scene.remove(p.mesh);
-                    particles.splice(i, 1);
+            if (obstacleToggle.checked && !crashed) {
+                if (Math.random() < 0.03 && speed > 1) {
+                    let obs = new THREE.Mesh(obsGeo, obsMat);
+                    let spawnZ = -200;
+                    let randomOffset = (Math.random() * (trackWidth * 1.5)) - (trackWidth * 0.75); 
+                    obs.position.set(getTrackCenter(spawnZ) + randomOffset, 0.75, spawnZ);
+                    scene.add(obs);
+                    obstacles.push({ mesh: obs, internalOffset: randomOffset });
+                }
+            } else if (!obstacleToggle.checked && obstacles.length > 0) {
+                obstacles.forEach(o => scene.remove(o.mesh));
+                obstacles = [];
+                crashed = false; 
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.mesh.position.z += zMovement;
+                
+                obs.mesh.position.x = getTrackCenter(obs.mesh.position.z) + obs.internalOffset;
+
+                if (!crashed &&
+                    Math.abs(obs.mesh.position.z - carGroup.position.z) < 2.5 && 
+                    Math.abs(obs.mesh.position.x - carGroup.position.x) < 1.5) {
+                    
+                    crashed = true;
+                    speed = 0;
+                    carRotation += Math.PI; 
+                    alertText.innerText = "CRASHED!";
+                    alertText.style.color = "#ef4444";
+                    alertText.style.opacity = 1;
+                }
+
+                if (obs.mesh.position.z > 10) {
+                    scene.remove(obs.mesh);
+                    obstacles.splice(i, 1);
                 }
             }
 
-            // Camera follow (3rd person)
-            // Camera targets a spot behind and above the car
-            const targetX = carGroup.position.x + Math.sin(carRotation) * 10;
-            const targetY = 4 + (speed * 0.5); // Pull back/up when fast
-            const targetZ = carGroup.position.z + 12 + (speed * 1.5);
+            const targetX = currentCenter; 
+            const targetY = 4 + (speed * 0.5); 
+            const targetZ = carGroup.position.z + 10 + (speed * 1.5);
 
-            camera.position.x += (targetX - camera.position.x) * 0.1;
+            camera.position.x += ((carGroup.position.x * 0.5 + targetX * 0.5) - camera.position.x) * 0.1;
             camera.position.y += (targetY - camera.position.y) * 0.1;
             camera.position.z += (targetZ - camera.position.z) * 0.1;
-            camera.lookAt(carGroup.position.x, carGroup.position.y, carGroup.position.z - 10);
+            camera.lookAt(carGroup.position.x, carGroup.position.y, carGroup.position.z - 15);
 
-            // Update UI
-            uiSpeed.innerText = Math.floor(speed * 110); // Fake KM/H multiplier
+            uiSpeed.innerText = Math.floor(speed * 110); 
             uiDist.innerText = Math.floor(distanceTraveled);
 
             renderer.render(scene, camera);
         }
 
-        // Handle Window Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Start!
         animate();
     </script>
 </body>
