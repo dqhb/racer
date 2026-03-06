@@ -25,7 +25,7 @@
         <h1>big orange</h1>
         <p>you are an orange. the boss is an orange.<br>
         use <span class="highlight">w / a / s / d</span> or <span class="highlight">arrows</span> to move.<br>
-        <span class="highlight">spacebar</span> to dash. <span class="highlight">w</span> fires your jetpack.</p>
+        <span class="highlight">spacebar</span> to instant teleport. <span class="highlight">w</span> fires your jetpack.</p>
         <button id="start-btn">engage</button>
     </div>
 
@@ -125,7 +125,7 @@
             let numAttacks = phase + 1; 
 
             for (let a = 0; a < numAttacks; a++) {
-                let type = Math.floor(Math.random() * 22) + 1; // Bumped to 22 for spikes
+                let type = Math.floor(Math.random() * 22) + 1; 
                 let cx = canvas.width/2; let cy = canvas.height/2;
 
                 switch(type) {
@@ -168,9 +168,13 @@
                         spawnProj(cx, cy, (px-cx)*0.05, (py-cy)*0.05, 18, 'shrapnel', { timer: 30 }); break;
                     case 19: spawnZone('blackhole', { x: Math.random()*canvas.width, y: Math.random()*canvas.height, life: 200 }); break;
                     case 20: spawnZone('blender', { angle: Math.random()*Math.PI, life: 200 }); break;
-                    case 21: // MINIONS
-                        let minionPos = [{x: cx * 0.5, y: cy * 0.5}, {x: cx * 1.5, y: cy * 0.5}, {x: cx * 0.5, y: cy * 1.5}, {x: cx * 1.5, y: cy * 1.5}];
-                        for(let pos of minionPos) spawnZone('minion', { x: pos.x, y: pos.y, r: 25, attacksLeft: 5, fireCooldown: 60, angle: Math.PI/4 });
+                    case 21: // RANDOM MINIONS WITH RANDOM SPIN
+                        for(let i=0; i<4; i++) {
+                            let mx = Math.random() * (canvas.width - 100) + 50;
+                            let my = Math.random() * (canvas.height - 100) + 50;
+                            let spinSpeed = (Math.random() * 0.06 + 0.02) * (Math.random() < 0.5 ? 1 : -1); // Random speed & direction
+                            spawnZone('minion', { x: mx, y: my, r: 25, attacksLeft: 5, fireCooldown: 60, angle: Math.random() * Math.PI*2, spin: spinSpeed });
+                        }
                         break;
                     case 22: // WALL SPIKES
                         spawnZone('spikes', { length: 120 }); break;
@@ -194,10 +198,34 @@
                     if (keys.a) dx -= 1; if (keys.d) dx += 1;
                     if (keys.w) dy -= 1; if (keys.s) dy += 1;
                     if (dx === 0 && dy === 0) dx = player.x > boss.x ? 1 : -1;
+                    
                     let dist = Math.hypot(dx, dy);
                     if (dist > 0) {
-                        player.vx = (dx / dist) * 20; player.vy = (dy / dist) * 20; player.dashCooldown = 45; 
-                        for(let i=0; i<15; i++) particles.push({ x: player.x, y: player.y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, r: 5, life: 1, color: '#f97316' });
+                        let startX = player.x; let startY = player.y;
+                        
+                        // Particles at origin
+                        for(let i=0; i<15; i++) particles.push({ x: startX, y: startY, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, r: 5, life: 1, color: '#f97316' });
+                        
+                        // Instant teleport jump
+                        let jumpDist = 250; 
+                        player.x += (dx / dist) * jumpDist; 
+                        player.y += (dy / dist) * jumpDist; 
+                        
+                        // Clamp bounds
+                        player.x = Math.max(player.r, Math.min(canvas.width - player.r, player.x));
+                        player.y = Math.max(player.r, Math.min(canvas.height - player.r, player.y));
+                        
+                        // Kill all momentum for true teleport feel
+                        player.vx = 0; player.vy = 0; 
+                        player.dashCooldown = 45; 
+                        
+                        // Instant trail spanning the gap
+                        for(let step = 0; step <= 1; step += 0.1) {
+                            dashTrails.push({ x: startX + (player.x - startX)*step, y: startY + (player.y - startY)*step, r: player.r, life: 30, color: 'rgba(255,165,0,0.8)' });
+                        }
+
+                        // Particles at destination
+                        for(let i=0; i<15; i++) particles.push({ x: player.x, y: player.y, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, r: 5, life: 1, color: '#facc15' });
                     }
                 }
 
@@ -208,8 +236,6 @@
 
                 player.vy += player.gravity; player.vx *= player.friction; player.vy *= player.friction;
                 player.x += player.vx; player.y += player.vy;
-
-                if (player.dashCooldown > 30) dashTrails.push({ x: player.x, y: player.y, r: player.r, life: 30, color: 'rgba(255,165,0,0.8)' });
 
                 if (player.x < player.r) { player.x = player.r; player.vx = 0; }
                 if (player.x > canvas.width - player.r) { player.x = canvas.width - player.r; player.vx = 0; }
@@ -322,14 +348,13 @@
                             let p2x = boss.x + Math.cos(currentBlenderAngle+Math.PI)*2000; let p2y = boss.y + Math.sin(currentBlenderAngle+Math.PI)*2000;
                             if (distToSegment(player, boss, {x:p1x,y:p1y}) < 30 || distToSegment(player, boss, {x:p2x,y:p2y}) < 30) die();
                         }
-                    } else if (z.type === 'minion') {
-                        z.angle += 0.03; // SLOW SPIN
+                    } else if (z.type === 'minion') { 
+                        z.angle += z.spin; // RANDOM SPIN APPLIED HERE
                         z.fireCooldown--;
                         if(Math.hypot(player.x - z.x, player.y - z.y) < z.r + player.r) die();
                         
                         if (z.fireCooldown <= 0) {
                             let spd = 6;
-                            // X-SHAPED PROJECTILES
                             spawnProj(z.x, z.y, spd, spd, 8, 'normal'); 
                             spawnProj(z.x, z.y, -spd, spd, 8, 'normal');  
                             spawnProj(z.x, z.y, spd, -spd, 8, 'normal'); 
@@ -338,7 +363,7 @@
                             z.fireCooldown = 60; z.attacksLeft--;
                             if (z.attacksLeft <= 0) zones.splice(i, 1);
                         }
-                    } else if (z.type === 'spikes') {
+                    } else if (z.type === 'spikes') { 
                         if (z.timer <= 0 && z.state === 'warn') {
                             z.state = 'active'; z.timer = 50;
                         } else if (z.state === 'active') {
@@ -461,37 +486,30 @@
                 } else if (z.type === 'blackhole') {
                     ctx.fillStyle = z.timer>0 ? 'rgba(147,51,234,0.3)' : '#eacc33';
                     ctx.beginPath(); ctx.arc(z.x, z.y, 40 + Math.sin(frame*0.2)*10, 0, Math.PI*2); ctx.fill();
-                } else if (z.type === 'minion') { // ROTATING X MINION
+                } else if (z.type === 'minion') { 
                     ctx.save();
                     ctx.translate(z.x, z.y);
                     ctx.rotate(z.angle);
                     
-                    // Draw the X arms
                     ctx.fillStyle = '#f97316';
                     ctx.beginPath();
                     ctx.roundRect(-z.r * 1.5, -z.r * 0.3, z.r * 3, z.r * 0.6, 5); 
                     ctx.roundRect(-z.r * 0.3, -z.r * 1.5, z.r * 0.6, z.r * 3, 5);
                     ctx.fill();
 
-                    // Draw the face matching the boss phase
                     ctx.beginPath(); ctx.arc(0, 0, z.r, 0, Math.PI*2); ctx.fill();
                     drawFace(0, 0, z.r, phase); 
-                    
                     ctx.restore();
-                } else if (z.type === 'spikes') { // WALL SPIKES RENDER
+                } else if (z.type === 'spikes') { 
                     let curLen = z.state === 'warn' ? z.length * 0.2 : z.length;
                     ctx.fillStyle = z.state === 'warn' ? 'rgba(239,68,68,0.3)' : '#f97316';
                     if (z.state === 'active') { ctx.shadowBlur = 10; ctx.shadowColor = '#f97316'; }
                     
-                    let bw = 60; // base width of each spike
+                    let bw = 60; 
                     ctx.beginPath();
-                    // top
                     for(let x=0; x<=canvas.width; x+=bw) { ctx.moveTo(x,0); ctx.lineTo(x+bw/2,curLen); ctx.lineTo(x+bw,0); }
-                    // bottom
                     for(let x=0; x<=canvas.width; x+=bw) { ctx.moveTo(x,canvas.height); ctx.lineTo(x+bw/2,canvas.height-curLen); ctx.lineTo(x+bw,canvas.height); }
-                    // left
                     for(let y=0; y<=canvas.height; y+=bw) { ctx.moveTo(0,y); ctx.lineTo(curLen,y+bw/2); ctx.lineTo(0,y+bw); }
-                    // right
                     for(let y=0; y<=canvas.height; y+=bw) { ctx.moveTo(canvas.width,y); ctx.lineTo(canvas.width-curLen,y+bw/2); ctx.lineTo(canvas.width,y+bw); }
                     ctx.fill();
                     ctx.shadowBlur = 0;
