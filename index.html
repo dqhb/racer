@@ -49,14 +49,7 @@
         const scoreEl = document.getElementById('score-val');
         const finalScoreEl = document.getElementById('final-score');
         
-        let arena = { x: 0, y: 0, w: 0, h: 0 };
-
-        function resize() { 
-            canvas.width = window.innerWidth; 
-            canvas.height = window.innerHeight; 
-            boss.x = canvas.width/2; 
-            boss.y = canvas.height/2; 
-        }
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; boss.x = canvas.width/2; boss.y = canvas.height/2; }
         window.addEventListener('resize', resize);
 
         let isPlaying = false, winState = false, frame = 0, score = 0, attackTimer = 100;
@@ -79,7 +72,7 @@
             if (k===' ' || e.code==='Space') keys.space = false;
         });
 
-        const player = { x: 200, y: 200, r: 15, vx: 0, vy: 0, speed: 0.8, friction: 0.92, gravity: 0.4, thrust: -0.9, dashCooldown: 0, color: '#f97316', pulseTimer: 0 }; 
+        const player = { x: 200, y: 200, r: 15, vx: 0, vy: 0, speed: 0.8, friction: 0.92, gravity: 0.4, thrust: -0.9, dashCooldown: 0, color: '#f97316', pulseTimer: 0 }; // Slightly increased player radius to fit the face better
         const boss = { x: 0, y: 0, r: 60, color: '#ea580c', pulseTimer: 0 }; 
         
         let projs = []; 
@@ -92,8 +85,8 @@
             bgOranges = [];
             for(let i=0; i<30; i++) {
                 bgOranges.push({ 
-                    x: Math.random() * window.innerWidth, 
-                    y: Math.random() * window.innerHeight, 
+                    x: Math.random() * canvas.width, 
+                    y: Math.random() * canvas.height, 
                     r: Math.random() * 100 + 50, 
                     parallax: Math.random() * 0.4 + 0.1 
                 });
@@ -129,34 +122,31 @@
             boss.pulseTimer = 20; 
             
             let phase = Math.min(4, Math.floor(score / 20));
-            let numAttacks = phase + 1; 
+            let numAttacks = phase + 1; // Layers an extra attack every 20 score
 
             for (let a = 0; a < numAttacks; a++) {
-                let type = Math.floor(Math.random() * 21) + 1; 
+                let type = Math.floor(Math.random() * 20) + 1; 
                 let cx = canvas.width/2; let cy = canvas.height/2;
-
-                let rx = arena.x + Math.random() * arena.w;
-                let ry = arena.y + Math.random() * arena.h;
 
                 switch(type) {
                     case 1: 
                         spawnZone('spinLasers', { angle: Math.random()*Math.PI, speed: 0.008, life: 300 }); break;
                     case 2: 
                         for(let i=0; i<8; i++) {
-                            let edgeX = Math.random() < 0.5 ? arena.x : arena.x + arena.w;
-                            let edgeY = arena.y + Math.random() * arena.h;
+                            let edgeX = Math.random() < 0.5 ? 0 : canvas.width;
+                            let edgeY = Math.random() * canvas.height;
                             let tx = player.x + (Math.random()*200-100);
                             let ty = player.y + (Math.random()*200-100);
-                            let angle = Math.atan2(ty - edgeY, tx - edgeX);
-                            spawnProj(edgeX, edgeY, Math.cos(angle)*6, Math.sin(angle)*6, 20, 'asteroid');
+                            let a = Math.atan2(ty - edgeY, tx - edgeX);
+                            spawnProj(edgeX, edgeY, Math.cos(a)*6, Math.sin(a)*6, 20, 'asteroid');
                         } break;
                     case 3: 
                         for(let i=0; i<4; i++) {
-                            if(Math.random()>0.5) spawnZone('hvLaser', { isH: true, y: ry, h: 40 });
-                            else spawnZone('hvLaser', { isH: false, x: rx, w: 40 });
+                            if(Math.random()>0.5) spawnZone('hvLaser', { isH: true, y: Math.random()*canvas.height, h: 40 });
+                            else spawnZone('hvLaser', { isH: false, x: Math.random()*canvas.width, w: 40 });
                         } break;
                     case 4: 
-                        spawnZone('nuke', { x: cx, y: cy, r: arena.h*0.4 }); break;
+                        spawnZone('nuke', { x: cx, y: cy, r: canvas.height*0.4 }); break;
                     case 5: 
                         for(let i=0; i<3; i++) spawnProj(cx, cy, (Math.random()-0.5)*10, (Math.random()-0.5)*10, 8, 'homing', { life: 200 }); break;
                     case 6: 
@@ -164,20 +154,20 @@
                     case 7: 
                         spawnZone('supernova', { x: cx, y: cy, r: 80 }); break;
                     case 8: 
-                        let gap = Math.random() * (arena.h - 200) + 100;
-                        for(let y=arena.y; y<arena.y+arena.h; y+=30) {
-                            if(Math.abs((y-arena.y)-gap)>80) spawnProj(arena.x, y, 7, 0, 12);
+                        let gap = Math.random() * (canvas.height - 200) + 100;
+                        for(let y=0; y<canvas.height; y+=30) {
+                            if(Math.abs(y-gap)>80) spawnProj(0, y, 7, 0, 12);
                         } break;
                     case 9: 
-                        for(let i=0; i<6; i++) spawnZone('mine', { x: rx, y: ry, r: 80 }); break;
+                        for(let i=0; i<6; i++) spawnZone('mine', { x: Math.random()*canvas.width, y: Math.random()*canvas.height, r: 80 }); break;
                     case 10: 
                         spawnZone('sniper', { tx: player.x, ty: player.y }); break;
                     case 11: 
                         spawnZone('cross', { life: 100 }); break;
                     case 12: 
-                        for(let i=0; i<15; i++) spawnProj(rx, arena.y-50, 0, 8+Math.random()*4, 6); break;
+                        for(let i=0; i<15; i++) spawnProj(Math.random()*canvas.width, -50, 0, 8+Math.random()*4, 6); break;
                     case 13: 
-                        for(let i=0; i<10; i++) spawnProj(arena.x, ry, 5+Math.random()*3, 0, 8, 'sine', { startY: ry, offset: Math.random()*Math.PI*2 }); break;
+                        for(let i=0; i<10; i++) spawnProj(0, Math.random()*canvas.height, 5+Math.random()*3, 0, 8, 'sine', { startY: Math.random()*canvas.height, offset: Math.random()*Math.PI*2 }); break;
                     case 14: 
                         let baseA = Math.atan2(player.y-cy, player.x-cx);
                         for(let i=0; i<12; i++) {
@@ -186,7 +176,7 @@
                             spawnProj(cx, cy, Math.cos(spread)*spd, Math.sin(spread)*spd, 7);
                         } break;
                     case 15: 
-                        spawnZone('lava', { y: arena.y + arena.h - 150, h: 150, life: 180 }); break;
+                        spawnZone('lava', { y: canvas.height - 150, h: 150, life: 180 }); break;
                     case 16: 
                         spawnZone('spiral', { angle: 0, life: 150 }); break;
                     case 17: 
@@ -195,27 +185,20 @@
                         let px = player.x + (Math.random()*200-100); let py = player.y-200;
                         spawnProj(cx, cy, (px-cx)*0.05, (py-cy)*0.05, 18, 'shrapnel', { timer: 30 }); break;
                     case 19: 
-                        spawnZone('blackhole', { x: rx, y: ry, life: 200 }); break;
+                        spawnZone('blackhole', { x: Math.random()*canvas.width, y: Math.random()*canvas.height, life: 200 }); break;
                     case 20: 
                         spawnZone('blender', { angle: Math.random()*Math.PI, life: 200 }); break;
-                    case 21:
-                        spawnZone('spikes', { life: 200 }); break; 
                 }
             }
         }
 
         function update() {
-            // Keep the arena full size at all times
-            arena.x = 0;
-            arena.y = 0;
-            arena.w = canvas.width;
-            arena.h = canvas.height;
-
             if (score >= 100 && !winState) {
                 winState = true;
-                boss.r = 0; 
-                projs = []; zones = []; dashTrails = []; 
+                boss.r = 0; // Hide boss
+                projs = []; zones = []; dashTrails = []; // Clear arena
                 
+                // Explode boss into a million pieces
                 for(let i=0; i<400; i++) {
                     particles.push({ 
                         x: boss.x, y: boss.y, 
@@ -267,10 +250,10 @@
                     dashTrails.push({ x: player.x, y: player.y, r: player.r, life: 30, color: 'rgba(255,165,0,0.8)' });
                 }
 
-                if (player.x < arena.x + player.r) { player.x = arena.x + player.r; player.vx = 0; }
-                if (player.x > arena.x + arena.w - player.r) { player.x = arena.x + arena.w - player.r; player.vx = 0; }
-                if (player.y < arena.y + player.r) { player.y = arena.y + player.r; player.vy = 0; }
-                if (player.y > arena.y + arena.h - player.r) { player.y = arena.y + arena.h - player.r; player.vy = 0; }
+                if (player.x < player.r) { player.x = player.r; player.vx = 0; }
+                if (player.x > canvas.width - player.r) { player.x = canvas.width - player.r; player.vx = 0; }
+                if (player.y < player.r) { player.y = player.r; player.vy = 0; }
+                if (player.y > canvas.height - player.r) { player.y = canvas.height - player.r; player.vy = 0; }
 
                 if (player.pulseTimer > 0) player.pulseTimer--;
                 if (boss.pulseTimer > 0) boss.pulseTimer--;
@@ -301,8 +284,8 @@
                     } else if (p.type === 'bouncy') {
                         p.x += p.vx; p.y += p.vy;
                         p.angle += p.spinSpeed; 
-                        if (p.x < arena.x || p.x > arena.x + arena.w) { p.vx *= -1; p.bounces--; }
-                        if (p.y < arena.y || p.y > arena.y + arena.h) { p.vy *= -1; p.bounces--; }
+                        if (p.x < 0 || p.x > canvas.width) { p.vx *= -1; p.bounces--; }
+                        if (p.y < 0 || p.y > canvas.height) { p.vy *= -1; p.bounces--; }
                         if (p.bounces <= 0) projs.splice(i, 1);
                     } else if (p.type === 'shrapnel') {
                         p.x += p.vx; p.y += p.vy; p.timer--;
@@ -337,7 +320,8 @@
                         }
                     } else if (z.type === 'hvLaser') {
                         if (z.timer <= 0 && z.state === 'warn') {
-                            z.state = 'active'; z.timer = 15; 
+                            z.state = 'active'; 
+                            z.timer = 15; 
                             if (z.isH) z.rect = { x: 0, y: z.y-z.h/2, w: canvas.width, h: z.h };
                             else z.rect = { x: z.x-z.w/2, y: 0, w: z.w, h: canvas.height };
                         } else if (z.state === 'active') {
@@ -346,7 +330,8 @@
                         }
                     } else if (z.type === 'nuke' || z.type === 'mine' || z.type === 'supernova') {
                         if (z.timer <= 0 && z.state === 'warn') {
-                            z.state = 'explode'; z.timer = (z.type === 'nuke') ? 20 : 15; 
+                            z.state = 'explode'; 
+                            z.timer = (z.type === 'nuke') ? 20 : 15; 
                             if (z.type === 'supernova') {
                                 for(let j=0; j<20; j++) {
                                     let a = (j/20)*Math.PI*2; spawnProj(z.x, z.y, Math.cos(a)*5, Math.sin(a)*5, 10);
@@ -359,6 +344,7 @@
                     } else if (z.type === 'sniper') {
                         if (z.timer <= 0) {
                             let baseA = Math.atan2(z.ty - boss.y, z.tx - boss.x);
+                            // Fire 20 bullets in a deadly shotgun spread
                             for(let j = 0; j < 20; j++) {
                                 let spread = baseA + (Math.random() - 0.5) * 0.8; 
                                 let spd = 12 + Math.random() * 15; 
@@ -396,15 +382,6 @@
                             let p2x = boss.x + Math.cos(currentBlenderAngle+Math.PI)*2000; let p2y = boss.y + Math.sin(currentBlenderAngle+Math.PI)*2000;
                             if (distToSegment(player, boss, {x:p1x,y:p1y}) < 30 || distToSegment(player, boss, {x:p2x,y:p2y}) < 30) die();
                         }
-                    } else if (z.type === 'spikes') {
-                        z.life--; if(z.life <= 0) zones.splice(i, 1);
-                        if (z.timer <= 0) {
-                            let spikeDepth = 60;
-                            if (player.x < arena.x + spikeDepth || player.x > arena.x + arena.w - spikeDepth ||
-                                player.y < arena.y + spikeDepth || player.y > arena.y + arena.h - spikeDepth) {
-                                die();
-                            }
-                        }
                     }
                 }
             }
@@ -415,45 +392,57 @@
             }
 
             for(let i=dashTrails.length-1; i>=0; i--) {
-                let trail = dashTrails[i]; trail.life--; trail.r *= 0.95; 
+                let trail = dashTrails[i];
+                trail.life--;
+                trail.r *= 0.95; 
                 if (trail.life <= 0) dashTrails.splice(i, 1);
             }
+
             frame++;
         }
 
         function drawFace(x, y, r, phase) {
-            ctx.fillStyle = '#0f172a'; ctx.strokeStyle = '#0f172a'; ctx.lineWidth = r * 0.15;
-            let eyeX = r * 0.35, eyeY = -r * 0.25, eyeR = r * 0.15;
+            ctx.fillStyle = '#0f172a';
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = r * 0.15;
+            
+            let eyeX = r * 0.35;
+            let eyeY = -r * 0.25;
+            let eyeR = r * 0.15;
 
-            if (phase === 0) { 
+            if (phase === 0) { // Normal / Happy
                 ctx.beginPath(); ctx.arc(x - eyeX, y + eyeY, eyeR, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x + eyeX, y + eyeY, eyeR, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x, y + r*0.15, r*0.4, 0, Math.PI, false); ctx.stroke();
-            } else if (phase === 1) { 
+            } else if (phase === 1) { // Annoyed
                 ctx.beginPath(); ctx.arc(x - eyeX, y + eyeY, eyeR, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x + eyeX, y + eyeY, eyeR, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.moveTo(x - r*0.35, y + r*0.25); ctx.lineTo(x + r*0.35, y + r*0.25); ctx.stroke();
-            } else if (phase === 2) { 
+            } else if (phase === 2) { // Angry
                 ctx.beginPath(); ctx.arc(x - eyeX, y + eyeY, eyeR, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x + eyeX, y + eyeY, eyeR, 0, Math.PI*2); ctx.fill();
+                // Eyebrows
                 ctx.beginPath(); ctx.moveTo(x - eyeX - r*0.2, y + eyeY - r*0.2); ctx.lineTo(x - eyeX + r*0.2, y + eyeY - r*0.05); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(x + eyeX + r*0.2, y + eyeY - r*0.2); ctx.lineTo(x + eyeX - r*0.2, y + eyeY - r*0.05); ctx.stroke();
+                // Frown
                 ctx.beginPath(); ctx.arc(x, y + r*0.5, r*0.3, Math.PI, Math.PI*2, false); ctx.stroke();
-            } else if (phase === 3) { 
-                ctx.fillStyle = '#ef4444'; 
+            } else if (phase === 3) { // Furious
+                ctx.fillStyle = '#ef4444'; // Red eyes
                 ctx.beginPath(); ctx.arc(x - eyeX, y + eyeY, eyeR*1.2, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x + eyeX, y + eyeY, eyeR*1.2, 0, Math.PI*2); ctx.fill();
                 ctx.strokeStyle = '#0f172a';
                 ctx.beginPath(); ctx.moveTo(x - eyeX - r*0.3, y + eyeY - r*0.3); ctx.lineTo(x - eyeX + r*0.3, y + eyeY); ctx.stroke();
                 ctx.beginPath(); ctx.moveTo(x + eyeX + r*0.3, y + eyeY - r*0.3); ctx.lineTo(x + eyeX - r*0.3, y + eyeY); ctx.stroke();
+                // Zigzag mouth
                 ctx.beginPath(); ctx.moveTo(x - r*0.4, y + r*0.3); ctx.lineTo(x - r*0.2, y + r*0.1); ctx.lineTo(x, y + r*0.3); ctx.lineTo(x + r*0.2, y + r*0.1); ctx.lineTo(x + r*0.4, y + r*0.3); ctx.stroke();
-            } else { 
+            } else { // Manic (Phase 4+)
                 ctx.fillStyle = '#0f172a';
                 ctx.beginPath(); ctx.arc(x - eyeX, y + eyeY, eyeR*1.5, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x + eyeX, y + eyeY, eyeR*1.5, 0, Math.PI*2); ctx.fill();
                 ctx.fillStyle = '#fff';
                 ctx.beginPath(); ctx.arc(x - eyeX, y + eyeY, eyeR*0.5, 0, Math.PI*2); ctx.fill();
                 ctx.beginPath(); ctx.arc(x + eyeX, y + eyeY, eyeR*0.5, 0, Math.PI*2); ctx.fill();
+                // Open screaming mouth
                 ctx.fillStyle = '#0f172a';
                 ctx.beginPath(); ctx.arc(x, y + r*0.3, r*0.4, 0, Math.PI*2); ctx.fill();
             }
@@ -482,10 +471,15 @@
             for (let z of zones) {
                 if (z.type === 'spinLasers' || z.type === 'cross' || z.type === 'blender') {
                     let currentRotation = (z.type === 'blender') ? (z.angle + (frame * 0.02)) : z.angle;
+
                     ctx.strokeStyle = (z.timer > 0 && z.state === 'warn') ? 'rgba(255,136,0,0.2)' : '#ff8800';
                     ctx.lineWidth = (z.timer > 0 && z.state === 'warn') ? 4 : (z.type==='blender'?60:30);
-                    if (!(z.timer > 0 && z.state === 'warn')) { ctx.shadowBlur = 20; ctx.shadowColor = '#ff8800'; } 
-                    else { ctx.shadowBlur = 0; }
+                    if (!(z.timer > 0 && z.state === 'warn')) { 
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#ff8800';
+                    } else {
+                        ctx.shadowBlur = 0;
+                    }
                     
                     ctx.beginPath();
                     if (z.type === 'spinLasers') {
@@ -500,19 +494,31 @@
                         ctx.moveTo(boss.x, boss.y); ctx.lineTo(boss.x+Math.cos(currentRotation)*2000, boss.y+Math.sin(currentRotation)*2000);
                         ctx.moveTo(boss.x, boss.y); ctx.lineTo(boss.x+Math.cos(currentRotation+Math.PI)*2000, boss.y+Math.sin(currentRotation+Math.PI)*2000);
                     }
-                    ctx.stroke(); ctx.shadowBlur = 0; 
+                    ctx.stroke();
+                    ctx.shadowBlur = 0; 
                 } else if (z.type === 'hvLaser') {
-                    if (z.state === 'active') { ctx.shadowBlur = 20; ctx.shadowColor = '#ff8800'; ctx.fillStyle = '#ff8800'; } 
-                    else { ctx.shadowBlur = 0; ctx.fillStyle = 'rgba(255,136,0,0.2)'; }
+                    if (z.state === 'active') {
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#ff8800';
+                        ctx.fillStyle = '#ff8800';
+                    } else {
+                        ctx.shadowBlur = 0;
+                        ctx.fillStyle = 'rgba(255,136,0,0.2)';
+                    }
                     if (z.isH) ctx.fillRect(0, z.y-z.h/2, canvas.width, z.h);
                     else ctx.fillRect(z.x-z.w/2, 0, z.w, canvas.height);
                     ctx.shadowBlur = 0; 
                 } else if (z.type === 'nuke' || z.type === 'mine' || z.type === 'supernova') {
                     if (z.state === 'explode') {
-                        ctx.shadowBlur = 30; ctx.shadowColor = '#ff8800'; ctx.fillStyle = '#ff8800';
-                        ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+                        ctx.shadowBlur = 30;
+                        ctx.shadowColor = '#ff8800';
+                        ctx.fillStyle = '#ff8800';
+                        ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill();
+                        ctx.shadowBlur = 0;
                     } else {
-                        ctx.fillStyle = 'rgba(251,146,60,0.15)'; ctx.strokeStyle = '#ff8800'; ctx.lineWidth = 2;
+                        ctx.fillStyle = 'rgba(251,146,60,0.15)';
+                        ctx.strokeStyle = '#ff8800';
+                        ctx.lineWidth = 2;
                         ctx.beginPath(); ctx.arc(z.x, z.y, z.r, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
                     }
                 } else if (z.type === 'sniper') {
@@ -522,56 +528,38 @@
                     ctx.fillStyle = z.timer>0 ? 'rgba(239,68,68,0.2)' : 'rgba(239,68,68,0.8)';
                     ctx.fillRect(0, z.y, canvas.width, z.h);
                 } else if (z.type === 'blackhole') {
-                    ctx.fillStyle = z.timer>0 ? 'rgba(234,88,12,0.3)' : '#ea580c';
-                    let bhRadius = 40 + Math.sin(frame*0.2)*10;
-                    ctx.beginPath(); ctx.arc(z.x, z.y, bhRadius, 0, Math.PI*2); ctx.fill();
-                    
-                    if (z.timer <= 0) {
-                        ctx.fillStyle = '#facc15';
-                        for(let j=0; j<6; j++) {
-                            let a = (frame * 0.15) + (j/6)*Math.PI*2;
-                            let pr = bhRadius + 15 + Math.sin(frame*0.1 + j)*10;
-                            ctx.beginPath(); ctx.arc(z.x + Math.cos(a)*pr, z.y + Math.sin(a)*pr, 4, 0, Math.PI*2); ctx.fill();
-                        }
-                    }
-                } else if (z.type === 'spikes') {
-                    let spikeDepth = 60;
-                    ctx.fillStyle = (z.timer > 0) ? 'rgba(239,68,68,0.3)' : '#ef4444';
-                    
-                    if (z.timer > 0) {
-                        ctx.fillRect(arena.x, arena.y, arena.w, spikeDepth); 
-                        ctx.fillRect(arena.x, arena.y + arena.h - spikeDepth, arena.w, spikeDepth); 
-                        ctx.fillRect(arena.x, arena.y, spikeDepth, arena.h); 
-                        ctx.fillRect(arena.x + arena.w - spikeDepth, arena.y, spikeDepth, arena.h); 
-                    } else {
-                        ctx.beginPath();
-                        for(let x = arena.x; x < arena.x + arena.w; x += 30) { ctx.moveTo(x, arena.y); ctx.lineTo(x+15, arena.y + spikeDepth); ctx.lineTo(x+30, arena.y); }
-                        for(let x = arena.x; x < arena.x + arena.w; x += 30) { ctx.moveTo(x, arena.y + arena.h); ctx.lineTo(x+15, arena.y + arena.h - spikeDepth); ctx.lineTo(x+30, arena.y + arena.h); }
-                        for(let y = arena.y; y < arena.y + arena.h; y += 30) { ctx.moveTo(arena.x, y); ctx.lineTo(arena.x + spikeDepth, y+15); ctx.lineTo(arena.x, y+30); }
-                        for(let y = arena.y; y < arena.y + arena.h; y += 30) { ctx.moveTo(arena.x + arena.w, y); ctx.lineTo(arena.x + arena.w - spikeDepth, y+15); ctx.lineTo(arena.x + arena.w, y+30); }
-                        ctx.fill();
-                    }
+                    ctx.fillStyle = z.timer>0 ? 'rgba(147,51,234,0.3)' : '#9333ea';
+                    ctx.beginPath(); ctx.arc(z.x, z.y, 40 + Math.sin(frame*0.2)*10, 0, Math.PI*2); ctx.fill();
                 }
             }
 
+            // Boss
             if (!winState) {
                 let phase = Math.min(4, Math.floor(score / 20));
                 let bRadius = boss.r + (boss.pulseTimer > 0 ? Math.sin(boss.pulseTimer * 0.5) * 5 : 0);
+                
                 let bColor = boss.color;
-                if(phase === 2) bColor = '#d9460b'; if(phase >= 3) bColor = '#c2410c';
+                if(phase === 2) bColor = '#d9460b';
+                if(phase >= 3) bColor = '#c2410c';
 
                 ctx.fillStyle = bColor;
                 ctx.beginPath(); ctx.arc(boss.x, boss.y, bRadius, 0, Math.PI*2); ctx.fill();
+                
                 drawFace(boss.x, boss.y, boss.r, phase);
             }
 
+            // Projectiles
             let phase = Math.min(4, Math.floor(score / 20));
             ctx.fillStyle = '#facc15';
             for (let p of projs) {
                 if (p.type === 'bouncy') {
-                    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
-                    ctx.fillStyle = '#ea580c'; ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI*2); ctx.fill();
-                    drawFace(0, 0, p.r, phase); ctx.restore();
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.angle);
+                    ctx.fillStyle = '#ea580c'; 
+                    ctx.beginPath(); ctx.arc(0, 0, p.r, 0, Math.PI*2); ctx.fill();
+                    drawFace(0, 0, p.r, phase);
+                    ctx.restore();
                 } else {
                     if (p.type === 'asteroid') ctx.fillStyle = '#c2410c';
                     else if (p.type === 'homing') ctx.fillStyle = '#ef4444';
@@ -580,10 +568,13 @@
                 }
             }
 
+            // Player
             if (!winState) {
                 let pRadius = player.r + (player.pulseTimer > 0 ? Math.sin(player.pulseTimer * 0.5) * 3 : 0);
                 ctx.fillStyle = player.color;
                 ctx.beginPath(); ctx.arc(player.x, player.y, pRadius, 0, Math.PI*2); ctx.fill();
+                
+                // Drawing the happy face on the player!
                 drawFace(player.x, player.y, player.r, 0); 
             }
         }
