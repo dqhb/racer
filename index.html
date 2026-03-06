@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>big orange</title>
+    <title>100-Level Boss Run</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #0f172a; font-family: 'Segoe UI', Tahoma, sans-serif; color: white; user-select: none; }
         canvas { display: block; }
@@ -26,10 +26,10 @@
 
     <div id="ui-layer">
         <div id="top-bar">
-            <h1>ORANGE</h1>
+            <h1>Citrus Doom</h1>
             <div style="display:flex; flex-direction:column; align-items:flex-end;">
                 <div id="level-display">JUMPS: 2 &nbsp;|&nbsp; LEVEL 1 / 100</div>
-                <div id="boss-alert">BOSS ROOM: ISOLATED ATTACK</div>
+                <div id="boss-alert">WARNING</div>
             </div>
         </div>
     </div>
@@ -38,14 +38,14 @@
         <h2>THE ORANGE WATCHES</h2>
         <p>
             <span class="controls-text">A / D / ARROWS</span> Move | <span class="controls-text">W / SPACE</span> Double Jump<br><br>
-            Survive all 10 distinct Citrus Attacks!
+            Survive the 4 core attacks. Prepare for the Ascent.
         </p>
         <button id="start-btn">BEGIN RUN</button>
     </div>
 
     <div id="victory">
         <h2>THE ORANGE IS DEFEATED!</h2>
-        <p>You survived all 100 levels.</p>
+        <p>You survived the Final Ascent.</p>
         <button onclick="location.reload()">PLAY AGAIN</button>
     </div>
 
@@ -95,7 +95,6 @@
         let currentLevel = 1;
         let platforms = [], hazards = [], particles = [], bgOranges = [];
         let cameraX = 0, cameraY = 0, deathY = 0; 
-        let windForce = 0, windTimer = 0;
 
         const player = {
             x: 0, y: 0, w: 24, h: 24, vx: 0, vy: 0,
@@ -105,7 +104,6 @@
 
         function buildLevel(level) {
             platforms = []; hazards = []; particles = []; bgOranges = [];
-            windForce = 0; windTimer = 0;
             
             let curX = 100, curY = 0;
             let minX = -500, maxX = 500, minY = -500, maxY = 500;
@@ -115,46 +113,62 @@
             player.x = curX + 50; player.y = curY; player.vx = 0; player.vy = 0;
             player.dead = false; player.jumpsLeft = player.maxJumps; jumpPressed = false; 
 
-            let numJumps = 12 + Math.floor(level * 0.2);
             let lowestY = curY + 100;
+            let orangeShades = ['#ea580c', '#f97316', '#fdba74', '#c2410c'];
 
-            for (let i = 0; i < numJumps; i++) {
-                let jumpPattern = Math.floor(Math.random() * 3);
-                let gapX, gapY, platW;
+            if (level === 100) {
+                // LEVEL 100: EXTRA LONG VERTICAL CLIMB
+                let numJumps = 40; 
+                bossAlert.innerText = "FINAL BOSS: THE ASCENT";
+                bossAlert.style.opacity = '1';
+                bossAlert.style.color = '#a855f7';
 
-                // Restructured Jump Gaps for Consistency 
-                if (jumpPattern === 0) { // Upward Angle
-                    gapX = (Math.random() < 0.5 ? 1 : -1) * (140 + Math.random() * 60); 
-                    gapY = -120 - Math.random() * 40;
-                } else if (jumpPattern === 1) { // Long Flat Jump
-                    gapX = (Math.random() < 0.5 ? 1 : -1) * (200 + Math.random() * 60); 
-                    gapY = (Math.random() * 60) - 30;
-                } else { // Downward Drop
-                    gapX = (Math.random() < 0.5 ? 1 : -1) * (150 + Math.random() * 60); 
-                    gapY = 80 + Math.random() * 80;
+                for (let i = 0; i < numJumps; i++) {
+                    let gapX = (Math.random() < 0.5 ? 1 : -1) * (80 + Math.random() * 80); 
+                    let gapY = -140 - Math.random() * 40; 
+                    
+                    let platW = 60 + Math.random() * 40;
+                    curX += gapX; curY += gapY;
+
+                    if (curY < minY) minY = curY;
+                    platforms.push({ x: curX, y: curY, w: platW, h: 20, type: 'normal', color: orangeShades[Math.floor(Math.random()*orangeShades.length)] });
                 }
+                platforms.push({ x: curX - 100, y: curY - 150, w: 300, h: 20, type: 'goal', color: '#4ade80' });
+                deathY = lowestY + 600; 
+            } else {
+                // STANDARD LEVELS
+                let numJumps = 12 + Math.floor(level * 0.2);
+                
+                if (level === 20) { bossAlert.innerText = "BOSS ROOM: LASERS ONLY"; bossAlert.style.opacity = '1'; bossAlert.style.color = '#ef4444';}
+                else if (level === 40) { bossAlert.innerText = "BOSS ROOM: ASTEROIDS ONLY"; bossAlert.style.opacity = '1'; bossAlert.style.color = '#ef4444';}
+                else if (level === 60) { bossAlert.innerText = "BOSS ROOM: BULLETS ONLY"; bossAlert.style.opacity = '1'; bossAlert.style.color = '#ef4444';}
+                else if (level === 80) { bossAlert.innerText = "BOSS ROOM: FALLING SPIKES ONLY"; bossAlert.style.opacity = '1'; bossAlert.style.color = '#ef4444';}
+                else { bossAlert.style.opacity = '0'; }
 
-                // Minimum gap safety override
-                if (Math.abs(gapX) < 130) gapX = (gapX < 0 ? -130 : 130);
+                for (let i = 0; i < numJumps; i++) {
+                    let jumpPattern = Math.floor(Math.random() * 3);
+                    let gapX, gapY, platW;
 
-                platW = 60 + Math.random() * 50;
+                    if (jumpPattern === 0) { gapX = (Math.random() < 0.5 ? 1 : -1) * (140 + Math.random() * 60); gapY = -120 - Math.random() * 40; } 
+                    else if (jumpPattern === 1) { gapX = (Math.random() < 0.5 ? 1 : -1) * (200 + Math.random() * 60); gapY = (Math.random() * 60) - 30; } 
+                    else { gapX = (Math.random() < 0.5 ? 1 : -1) * (150 + Math.random() * 60); gapY = 80 + Math.random() * 80; }
 
-                curX += gapX; curY += gapY;
-                if (curY > lowestY) lowestY = curY;
-                if (curY < minY) minY = curY; if (curY > maxY) maxY = curY;
-                if (curX < minX) minX = curX; if (curX > maxX) maxX = curX;
+                    if (Math.abs(gapX) < 130) gapX = (gapX < 0 ? -130 : 130);
+                    platW = 60 + Math.random() * 50;
 
-                let orangeShades = ['#ea580c', '#f97316', '#fdba74', '#c2410c'];
-                platforms.push({ x: curX, y: curY, w: platW, h: 20, type: 'normal', color: orangeShades[Math.floor(Math.random()*orangeShades.length)] });
+                    curX += gapX; curY += gapY;
+                    if (curY > lowestY) lowestY = curY;
+                    if (curY < minY) minY = curY; if (curY > maxY) maxY = curY;
+                    if (curX < minX) minX = curX; if (curX > maxX) maxX = curX;
+
+                    platforms.push({ x: curX, y: curY, w: platW, h: 20, type: 'normal', color: orangeShades[Math.floor(Math.random()*orangeShades.length)] });
+                }
+                platforms.push({ x: curX + (Math.random()<0.5 ? 160 : -160), y: curY - 50, w: 200, h: 20, type: 'goal', color: '#4ade80' });
+                deathY = lowestY + 600; 
             }
-            
-            platforms.push({ x: curX + (Math.random()<0.5 ? 160 : -160), y: curY - 50, w: 200, h: 20, type: 'goal', color: '#4ade80' });
             
             minX -= 500; maxX += 500; minY -= 800; maxY += 800;
             for(let i = 0; i < 50; i++) bgOranges.push({ x: minX + Math.random()*(maxX-minX), y: minY + Math.random()*(maxY-minY), r: Math.random()*150+50, parallax: Math.random()*0.4+0.1 });
-            deathY = lowestY + 600; 
-
-            bossAlert.style.opacity = (level % 10 === 0) ? '1' : '0';
         }
 
         function createSplash(x, y) {
@@ -168,99 +182,65 @@
         }
 
         function spawnHazard(type) {
-            if (type === 0) hazards.push({ type: 0, x: player.x+(Math.random()*800-400), w: 50, timer: 60, active: 15, state: 'warn' });
-            else if (type === 1) hazards.push({ type: 1, y: player.y+(Math.random()*600-300), w: 50, timer: 60, active: 15, state: 'warn' });
-            else if (type === 2) hazards.push({ type: 2, x: player.x+(Math.random()*1200-600), y: player.y-800, vx: (Math.random()-0.5)*4, vy: 9+Math.random()*4, r: 16 });
-            else if (type === 3) hazards.push({ type: 3, x: player.x+(Math.random()<0.5?700:-700), y: player.y+(Math.random()*400-200), vx: 0, vy: 0, r: 8, life: 300 });
-            else if (type === 4) hazards.push({ type: 4, x: player.x+(Math.random()*800-400), y: player.y-600, vx: (Math.random()-0.5)*8, vy: 0, r: 12, life: 400 });
-            else if (type === 5) {
-                let p = platforms[Math.floor(Math.random()*(platforms.length-2))+1];
-                hazards.push({ type: 5, x: p.x+p.w/2-25, y: p.y, w: 50, h: 0, maxH: 800, timer: 70, active: 40, state: 'warn' });
+            // Type 0: Lasers, Type 1: Asteroids, Type 2: Bullets, Type 3: Falling Spikes
+            if (type === 0) {
+                let isHorizontal = Math.random() < 0.5;
+                if (isHorizontal) hazards.push({ type: 0, isH: true, y: player.y+(Math.random()*600-300), w: 50, timer: 60, active: 15, state: 'warn' });
+                else hazards.push({ type: 0, isH: false, x: player.x+(Math.random()*800-400), w: 50, timer: 60, active: 15, state: 'warn' });
             }
-            else if (type === 6) {
-                let dir = Math.random()<0.5?1:-1;
-                hazards.push({ type: 6, x: player.x-800*dir, y: player.y+(Math.random()*200-100), vx: 20*dir, vy: 0, ax: -0.2*dir, r: 18, life: 400 });
-            }
-            else if (type === 7) {
-                if(windTimer <= 0) { windForce = (Math.random()<0.5?1:-1) * (0.2 + Math.random()*0.15); windTimer = 180; }
-            }
-            else if (type === 8) hazards.push({ type: 8, tx: 0, ty: 0, timer: 70, state: 'aim' });
-            else if (type === 9) {
-                let p = platforms[Math.floor(Math.random()*(platforms.length-2))+1];
-                hazards.push({ type: 9, x: p.x+p.w/2, y: p.y-14, vx: (Math.random()<0.5?-4.5:4.5), vy: 0, r: 14 });
-            }
+            else if (type === 1) hazards.push({ type: 1, x: player.x+(Math.random()*1200-600), y: player.y-800, vx: (Math.random()-0.5)*4, vy: 9+Math.random()*4, r: 16 });
+            else if (type === 2) hazards.push({ type: 2, tx: 0, ty: 0, timer: 60, state: 'aim' }); 
+            else if (type === 3) hazards.push({ type: 3, x: player.x+(Math.random()*600-300), y: player.y-700, vx: 0, vy: 14+Math.random()*6, w: 12, h: 60 });
         }
 
         function updateHazards() {
             if (player.dead) return; 
 
-            // Logic: All attacks at once on standard levels, 1 isolated attack on boss levels
-            let isBoss = (currentLevel % 10 === 0);
-            let activeTypes = isBoss ? [(currentLevel/10)-1] : [0,1,2,3,4,5,6,7,8,9];
+            let activeTypes = [0, 1, 2, 3];
             
-            // Adjust spawn rates heavily based on if it's mixed or isolated
-            let chance = isBoss ? 0.05 + (currentLevel*0.0005) : 0.003 + (currentLevel*0.00005);
-            activeTypes.forEach(t => { if (Math.random() < chance) spawnHazard(t); });
+            if (currentLevel === 20) activeTypes = [0];
+            else if (currentLevel === 40) activeTypes = [1];
+            else if (currentLevel === 60) activeTypes = [2];
+            else if (currentLevel === 80) activeTypes = [3];
+            
+            let chance = 0.005 + (currentLevel*0.0001);
+            if (currentLevel % 20 === 0 && currentLevel !== 100) chance *= 4; 
+            if (currentLevel === 100) chance *= 6; 
 
-            if (windTimer > 0) { windTimer--; player.vx += windForce; if(windTimer<=0) windForce=0; }
+            activeTypes.forEach(t => { if (Math.random() < chance) spawnHazard(t); });
 
             let px = player.x+player.w/2; let py = player.y+player.h/2;
 
             for (let i = hazards.length-1; i >= 0; i--) {
                 let h = hazards[i]; let remove = false;
                 
-                if (h.type === 0 || h.type === 1) { // Lasers
+                if (h.type === 0) { // Lasers
                     if (h.state === 'warn') { h.timer--; if(h.timer<=0) h.state = 'active'; }
                     else {
                         h.active--; if(h.active<=0) remove = true;
-                        else if (h.type === 0 && player.x < h.x+h.w && player.x+player.w > h.x) die();
-                        else if (h.type === 1 && player.y < h.y+h.w && player.y+player.h > h.y) die();
+                        else if (!h.isH && player.x < h.x+h.w && player.x+player.w > h.x) die();
+                        else if (h.isH && player.y < h.y+h.w && player.y+player.h > h.y) die();
                     }
-                } else if (h.type === 2) { // Asteroid
+                } else if (h.type === 1) { // Asteroid
                     h.x+=h.vx; h.y+=h.vy; if (Math.hypot(h.x-px, h.y-py) < h.r+12) die();
                     for(let p of platforms) if(h.x>p.x && h.x<p.x+p.w && h.y+h.r>p.y && h.y-h.r<p.y+p.h) { remove=true; createSplash(h.x, h.y+h.r); break; }
-                } else if (h.type === 3) { // Homing Seed
-                    h.life--; if(h.life<=0) remove = true;
-                    let d = Math.hypot(px-h.x, py-h.y); if (d < h.r+12) die();
-                    h.vx += ((px-h.x)/d)*0.15; h.vy += ((py-h.y)/d)*0.15;
-                    let s = Math.hypot(h.vx, h.vy); if(s>5) { h.vx=(h.vx/s)*5; h.vy=(h.vy/s)*5; }
-                    h.x+=h.vx; h.y+=h.vy;
-                } else if (h.type === 4) { // Pulp Bounce
-                    h.life--; if(h.life<=0) remove = true;
-                    h.vy += player.gravity*0.8; h.x+=h.vx; h.y+=h.vy;
-                    if (Math.hypot(h.x-px, h.y-py) < h.r+12) die();
-                    for(let p of platforms) if(h.x>p.x && h.x<p.x+p.w && h.y+h.r>p.y && h.y<p.y+p.h) { h.y=p.y-h.r; h.vy = -Math.abs(h.vy)*0.85; }
-                } else if (h.type === 5) { // Geyser
-                    if (h.state === 'warn') { h.timer--; if(h.timer<=0) h.state = 'active'; }
-                    else {
-                        h.active--; if(h.active<=0) remove = true;
-                        else {
-                            h.h = Math.min(h.h+45, h.maxH);
-                            if (player.x<h.x+h.w && player.x+player.w>h.x && player.y+player.h>h.y-h.h && player.y<h.y) die();
-                        }
-                    }
-                } else if (h.type === 6) { // Boomerang
-                    h.life--; if(h.life<=0) remove = true;
-                    h.vx+=h.ax; h.x+=h.vx; h.y+=h.vy;
-                    if (Math.hypot(h.x-px, h.y-py) < h.r+12) die();
-                } else if (h.type === 8) { // Sniper
+                } else if (h.type === 2) { // Bullets (Sniper Aim)
                     if (h.state === 'aim') {
-                        h.tx = px; h.ty = py; h.timer--; if(h.timer<=0) { h.state='lock'; h.timer=20; }
+                        h.tx = px; h.ty = py; h.timer--; if(h.timer<=0) { h.state='lock'; h.timer=15; }
                     } else if (h.state === 'lock') {
                         h.timer--; if(h.timer<=0) {
-                            h.state = 'bullet'; h.x = cameraX+canvas.width/2; h.y = cameraY+60; h.r = 12;
+                            h.state = 'bullet'; h.x = cameraX+canvas.width/2; h.y = cameraY+60; h.r = 10;
                             let d = Math.hypot(h.tx-h.x, h.ty-h.y);
-                            h.vx = ((h.tx-h.x)/d)*28; h.vy = ((h.ty-h.y)/d)*28;
+                            h.vx = ((h.tx-h.x)/d)*35; h.vy = ((h.ty-h.y)/d)*35; 
                         }
                     } else if (h.state === 'bullet') {
                         h.x+=h.vx; h.y+=h.vy; if (Math.hypot(h.x-px, h.y-py) < h.r+12) die();
-                        if (Math.abs(h.x-px)>2000) remove = true;
+                        if (Math.abs(h.x-px)>2000 || Math.abs(h.y-py)>2000) remove = true;
                     }
-                } else if (h.type === 9) { // Roller
-                    h.vy += player.gravity; h.x+=h.vx; h.y+=h.vy;
-                    if (Math.hypot(h.x-px, h.y-py) < h.r+12) die();
-                    for(let p of platforms) if(h.x>p.x && h.x<p.x+p.w && h.y+h.r>p.y && h.y<p.y+p.h) { h.y=p.y-h.r; h.vy=0; break; }
-                    if (h.y>deathY) remove = true;
+                } else if (h.type === 3) { // Falling Spikes
+                    h.x+=h.vx; h.y+=h.vy;
+                    if (player.x < h.x+h.w && player.x+player.w > h.x && player.y < h.y+h.h && player.y+player.h > h.y) die();
+                    for(let p of platforms) if(h.x>p.x && h.x<p.x+p.w && h.y+h.h>p.y && h.y<p.y+p.h) { remove=true; createSplash(h.x+h.w/2, p.y); break; }
                 }
                 if (remove) hazards.splice(i, 1);
             }
@@ -312,56 +292,42 @@
 
             levelUI.innerHTML = `JUMPS: <span style="color: ${player.jumpsLeft>0?'#4ade80':'#ef4444'}">${player.jumpsLeft}</span> &nbsp;|&nbsp; LEVEL ${currentLevel} / 100`;
 
-            // Parallax Background
+            // Background
             for (let o of bgOranges) { ctx.fillStyle = 'rgba(255,136,0,0.05)'; ctx.beginPath(); ctx.arc(o.x-(cameraX*o.parallax), o.y-(cameraY*o.parallax), o.r, 0, Math.PI*2); ctx.fill(); }
 
-            // Draw Wind Lines
-            if (windForce !== 0) {
-                ctx.fillStyle = 'rgba(255,255,255,0.15)';
-                for(let i=0; i<25; i++) {
-                    let wx = ((Date.now()*windForce*5) + (i*150)) % canvas.width; if (wx<0) wx += canvas.width;
-                    ctx.fillRect(wx, (i*60)%canvas.height, 60, 2);
-                }
+            // Boss Eye indicator for multiples of 20 and level 100
+            if (currentLevel % 20 === 0) {
+                ctx.fillStyle = '#ea580c'; ctx.beginPath(); ctx.arc(canvas.width/2, 0, 150, 0, Math.PI*2); ctx.fill();
+                ctx.fillStyle = '#111'; let ex = (player.x-(cameraX+canvas.width/2))*0.05; 
+                ctx.beginPath(); ctx.arc(canvas.width/2-40+ex, 60, 15, 0, Math.PI*2); ctx.arc(canvas.width/2+40+ex, 60, 15, 0, Math.PI*2); ctx.fill();
             }
-
-            // Draw Boss Eye
-            ctx.fillStyle = '#ea580c'; ctx.beginPath(); ctx.arc(canvas.width/2, 0, 150, 0, Math.PI*2); ctx.fill();
-            ctx.fillStyle = '#111'; let ex = (player.x-(cameraX+canvas.width/2))*0.05; 
-            ctx.beginPath(); ctx.arc(canvas.width/2-40+ex, 60, 15, 0, Math.PI*2); ctx.arc(canvas.width/2+40+ex, 60, 15, 0, Math.PI*2); ctx.fill();
 
             // Platforms
             for (let p of platforms) { ctx.fillStyle = p.color; ctx.fillRect(p.x-cameraX, p.y-cameraY, p.w, p.h); }
 
             // Hazards Drawer
             for (let h of hazards) {
-                if (h.type === 0 || h.type === 1) { // Lasers
-                    let isH = (h.type===1); let sx = isH ? 0 : h.x-cameraX; let sy = isH ? h.y-cameraY : 0;
-                    let w = isH ? canvas.width : h.w; let ht = isH ? h.w : canvas.height;
+                if (h.type === 0) { // Lasers
+                    let sx = h.isH ? 0 : h.x-cameraX; let sy = h.isH ? h.y-cameraY : 0;
+                    let w = h.isH ? canvas.width : h.w; let ht = h.isH ? h.w : canvas.height;
                     if (h.state === 'warn') {
                         ctx.fillStyle = 'rgba(251,146,60,0.15)'; ctx.fillRect(sx, sy, w, ht);
                         ctx.strokeStyle = 'rgba(251,146,60,0.6)'; ctx.strokeRect(sx, sy, w, ht);
                     } else if (h.state === 'active') { ctx.fillStyle = '#ff8800'; ctx.fillRect(sx, sy, w, ht); }
-                } else if (h.type === 2) { // Asteroid
+                } else if (h.type === 1) { // Asteroid
                     ctx.fillStyle = '#c2410c'; ctx.beginPath(); ctx.arc(h.x-cameraX, h.y-cameraY, h.r, 0, Math.PI*2); ctx.fill();
-                } else if (h.type === 3) { // Seed
-                    ctx.fillStyle = '#111'; ctx.beginPath(); ctx.arc(h.x-cameraX, h.y-cameraY, h.r, 0, Math.PI*2); ctx.fill();
-                } else if (h.type === 4) { // Pulp
-                    ctx.fillStyle = '#fde047'; ctx.beginPath(); ctx.arc(h.x-cameraX, h.y-cameraY, h.r, 0, Math.PI*2); ctx.fill();
-                } else if (h.type === 5) { // Geyser
-                    if(h.state === 'warn') { ctx.strokeStyle='#f97316'; ctx.strokeRect(h.x-cameraX, h.y-cameraY-h.maxH, h.w, h.maxH); }
-                    else { ctx.fillStyle='#ea580c'; ctx.fillRect(h.x-cameraX, h.y-cameraY-h.h, h.w, h.h); }
-                } else if (h.type === 6) { // Boomerang
-                    ctx.save(); ctx.translate(h.x-cameraX, h.y-cameraY); ctx.rotate(Date.now()*0.02);
-                    ctx.fillStyle='#ff8800'; ctx.beginPath(); ctx.arc(0,0, h.r, 0, Math.PI); ctx.fill(); ctx.restore();
-                } else if (h.type === 8) { // Sniper
+                } else if (h.type === 2) { // Sniper Bullets
                     if(h.state === 'aim' || h.state === 'lock') {
                         ctx.strokeStyle = h.state==='aim'?'rgba(239,68,68,0.3)':'rgba(239,68,68,0.9)'; ctx.lineWidth=h.state==='aim'?2:5;
                         ctx.beginPath(); ctx.moveTo(canvas.width/2, 60); ctx.lineTo(h.tx-cameraX, h.ty-cameraY); ctx.stroke();
                     } else if (h.state === 'bullet') {
                         ctx.fillStyle='#ef4444'; ctx.beginPath(); ctx.arc(h.x-cameraX, h.y-cameraY, h.r, 0, Math.PI*2); ctx.fill();
                     }
-                } else if (h.type === 9) { // Roller
-                    ctx.fillStyle='#94a3b8'; ctx.beginPath(); ctx.arc(h.x-cameraX, h.y-cameraY, h.r, 0, Math.PI*2); ctx.fill();
+                } else if (h.type === 3) { // Falling Spikes
+                    ctx.fillStyle='#cbd5e1'; 
+                    ctx.beginPath(); ctx.moveTo(h.x-cameraX, h.y-cameraY); 
+                    ctx.lineTo(h.x+h.w-cameraX, h.y-cameraY); 
+                    ctx.lineTo(h.x+(h.w/2)-cameraX, h.y+h.h-cameraY); ctx.fill();
                 }
             }
 
