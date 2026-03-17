@@ -49,16 +49,12 @@
 
     <script>
         // --- ANTI-CHEAT SNIPPET ---
-        // Block right-click context menu
         document.addEventListener('contextmenu', e => e.preventDefault());
-
-        // Block common developer tool keyboard shortcuts
         document.addEventListener('keydown', e => {
             if (e.key === 'F12') e.preventDefault();
             if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) e.preventDefault();
             if (e.ctrlKey && e.key === 'u') e.preventDefault();
         });
-        // --------------------------
 
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
@@ -81,7 +77,7 @@
             if (k==='s' || k==='arrowdown') keys.s = true;
             if (k==='a' || k==='arrowleft') keys.a = true;
             if (k==='d' || k==='arrowright') keys.d = true;
-            if (k===' ' || e.code==='Space') { keys.space = true; } // Don't prevent default here to allow anti-cheat logic
+            if (k===' ' || e.code==='Space') keys.space = true; 
         });
         window.addEventListener('keyup', e => {
             let k = e.key.toLowerCase();
@@ -150,11 +146,11 @@
             player.pulseTimer = 20; 
             boss.pulseTimer = 20; 
             
-            let scale = Math.floor(score / 20); // Adds +1 to projectiles/minions every 20 score
-            let numAttacks = score >= 50 ? 2 : 1; // Stack 2 attacks at 50+
+            let scale = Math.floor(score / 20); 
+            let numAttacks = score >= 50 ? 2 : 1; 
 
             for (let a = 0; a < numAttacks; a++) {
-                let type = Math.floor(Math.random() * 25) + 1; // Random 1-25
+                let type = Math.floor(Math.random() * 25) + 1; 
                 let cx = canvas.width/2; let cy = canvas.height/2;
 
                 switch(type) {
@@ -223,12 +219,8 @@
                         let speed24 = (canvas.width / 90) * (fromRight24 ? -1 : 1);
                         spawnZone('sweeper', { x: startX24, w: 150, speed: speed24, timer: 45 }); break;
                     case 25:
-                        for(let i=0; i<10 + scale; i++) {
-                            let tx = Math.random() * canvas.width; let ty = Math.random() * canvas.height;
-                            let ang = Math.atan2(ty - cy, tx - cx); let spd = 6 + Math.random()*4;
-                            let dist = Math.hypot(tx - cx, ty - cy);
-                            spawnProj(cx, cy, Math.cos(ang)*spd, Math.sin(ang)*spd, 12, 'puddle_proj', { life: dist / spd });
-                        }
+                        // The Vine Grab Attack
+                        spawnZone('vine', { state: 'aim', timer: 40, length: 0, grabbed: false, life: 120 });
                         break;
                 }
             }
@@ -250,14 +242,13 @@
                 if (keys.d) targetAngle = 0.3;
                 player.angle += (targetAngle - player.angle) * 0.15; 
 
-                // Check if player is in a sticky puddle
-                let inPuddle = zones.some(z => z.type === 'puddle' && Math.hypot(player.x - z.x, player.y - z.y) < player.r + z.r);
-                let currentSpeed = inPuddle ? player.speed * 0.8 : player.speed;
-                let currentThrust = inPuddle ? player.thrust * 0.8 : player.thrust;
-                let currentJumpDist = inPuddle ? 250 * 0.8 : 250;
+                // Check if the player is currently trapped by a vine
+                let isTethered = zones.some(z => z.type === 'vine' && z.grabbed);
 
                 player.dashCooldown--;
-                if (keys.space && player.dashCooldown <= 0) {
+                
+                // Disallow dash completely if tethered
+                if (keys.space && player.dashCooldown <= 0 && !isTethered) {
                     let dx = 0, dy = 0;
                     if (keys.a) dx -= 1; if (keys.d) dx += 1;
                     if (keys.w) dy -= 1; if (keys.s) dy += 1;
@@ -267,8 +258,8 @@
                     if (dist > 0) {
                         let startX = player.x; let startY = player.y;
                         for(let i=0; i<15; i++) particles.push({ x: startX, y: startY, vx: (Math.random()-0.5)*8, vy: (Math.random()-0.5)*8, r: 5, life: 1, color: '#f97316' });
-                        player.x += (dx / dist) * currentJumpDist; 
-                        player.y += (dy / dist) * currentJumpDist; 
+                        player.x += (dx / dist) * 250; 
+                        player.y += (dy / dist) * 250; 
                         player.x = Math.max(player.r, Math.min(canvas.width - player.r, player.x));
                         player.y = Math.max(player.r, Math.min(canvas.height - player.r, player.y));
                         player.vx = 0; player.vy = 0; 
@@ -278,10 +269,10 @@
                     }
                 }
 
-                if (keys.w) { player.vy += currentThrust; createExhaust(); }
-                if (keys.s) player.vy -= currentThrust * 0.5;
-                if (keys.a) player.vx -= currentSpeed;
-                if (keys.d) player.vx += currentSpeed;
+                if (keys.w) { player.vy += player.thrust; createExhaust(); }
+                if (keys.s) player.vy -= player.thrust * 0.5;
+                if (keys.a) player.vx -= player.speed;
+                if (keys.d) player.vx += player.speed;
 
                 player.vy += player.gravity; player.vx *= player.friction; player.vy *= player.friction;
                 player.x += player.vx; player.y += player.vy;
@@ -322,16 +313,9 @@
                             for(let j=0; j<8; j++) { let a = (j/8)*Math.PI*2; spawnProj(p.x, p.y, Math.cos(a)*8, Math.sin(a)*8, 6); }
                             projs.splice(i, 1);
                         }
-                    } else if (p.type === 'puddle_proj') {
-                        p.x += p.vx; p.y += p.vy; p.life--;
-                        if (p.life <= 0) {
-                            spawnZone('puddle', { x: p.x, y: p.y, r: 45, startScore: score }); // Splat! Tied to global score
-                            projs.splice(i, 1);
-                            continue;
-                        }
                     } else { p.x += p.vx; p.y += p.vy; }
 
-                    if (p.type !== 'puddle_proj' && Math.hypot(player.x - p.x, player.y - p.y) < player.r + p.r) die();
+                    if (Math.hypot(player.x - p.x, player.y - p.y) < player.r + p.r) die();
                     if (p.type !== 'bouncy' && (p.x < -100 || p.x > canvas.width + 100 || p.y < -100 || p.y > canvas.height + 100)) projs.splice(i, 1);
                 }
 
@@ -438,10 +422,33 @@
                             if (Math.abs(player.x - z.x) < z.w/2 + player.r) die();
                             if ((z.speed > 0 && z.x > canvas.width + z.w) || (z.speed < 0 && z.x < -z.w)) zones.splice(i, 1);
                         }
-                    } else if (z.type === 'puddle') {
-                        // Check if 3 attacks have happened since this puddle spawned
-                        if (score >= z.startScore + 3) {
-                            zones.splice(i, 1);
+                    } else if (z.type === 'vine') {
+                        if (z.state === 'aim') {
+                            // Lock onto player just before shooting to give them a tiny dodge window
+                            if (z.timer > 10) { z.angle = Math.atan2(player.y - boss.y, player.x - boss.x); z.lockedAngle = z.angle; }
+                            if (z.timer <= 0) { z.state = 'shoot'; z.timer = 30; z.angle = z.lockedAngle; }
+                        } else if (z.state === 'shoot') {
+                            z.length += 50; // Extremely fast shoot
+                            let tipX = boss.x + Math.cos(z.angle) * z.length;
+                            let tipY = boss.y + Math.sin(z.angle) * z.length;
+                            
+                            if (!z.grabbed && distToSegment(player, boss, {x: tipX, y: tipY}) < player.r + 20) {
+                                z.grabbed = true; z.state = 'pull';
+                                for(let j=0; j<10; j++) particles.push({ x: player.x, y: player.y, vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, r: 4, life: 1, color: '#22c55e' });
+                            }
+                            if (z.timer <= 0 && !z.grabbed) { z.state = 'retract'; z.timer = 20; }
+                        } else if (z.state === 'pull') {
+                            z.life--;
+                            // Gravitational drag directly towards the boss
+                            let pullAngle = Math.atan2(boss.y - player.y, boss.x - player.x);
+                            player.vx += Math.cos(pullAngle) * 1.5;
+                            player.vy += Math.sin(pullAngle) * 1.5;
+                            
+                            z.length = Math.hypot(player.x - boss.x, player.y - boss.y); // Lock vine to player
+                            if (z.life <= 0) { z.state = 'retract'; z.grabbed = false; }
+                        } else if (z.state === 'retract') {
+                            z.length -= 40;
+                            if (z.length <= 0) zones.splice(i, 1);
                         }
                     }
                 }
@@ -583,9 +590,42 @@
                     ctx.fillStyle = z.state === 'warn' ? 'rgba(255,136,0,0.3)' : '#ff8800';
                     if (z.state === 'active') { ctx.shadowBlur = 20; ctx.shadowColor = '#ff8800'; }
                     ctx.fillRect(z.x - z.w/2, 0, z.w, canvas.height); ctx.shadowBlur = 0;
-                } else if (z.type === 'puddle') {
-                    ctx.fillStyle = `rgba(249, 115, 22, 0.4)`;
-                    ctx.beginPath(); ctx.ellipse(z.x, z.y, z.r, z.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
+                } else if (z.type === 'vine') {
+                    if (z.state === 'aim') {
+                        ctx.strokeStyle = 'rgba(34, 197, 94, 0.4)'; ctx.lineWidth = 2;
+                        ctx.beginPath(); ctx.moveTo(boss.x, boss.y); 
+                        ctx.lineTo(boss.x + Math.cos(z.lockedAngle || z.angle)*canvas.width, boss.y + Math.sin(z.lockedAngle || z.angle)*canvas.width);
+                        ctx.stroke();
+                    } else {
+                        // Draw the wavy green vine
+                        ctx.strokeStyle = '#16a34a'; ctx.lineWidth = 14; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+                        ctx.beginPath();
+                        let startX = boss.x; let startY = boss.y;
+                        let endX = z.grabbed ? player.x : boss.x + Math.cos(z.angle) * z.length;
+                        let endY = z.grabbed ? player.y : boss.y + Math.sin(z.angle) * z.length;
+                        
+                        ctx.moveTo(startX, startY);
+                        let segments = 12;
+                        for (let j=1; j<=segments; j++) {
+                            let t = j/segments;
+                            let bx = startX + (endX - startX)*t;
+                            let by = startY + (endY - startY)*t;
+                            let wave = Math.sin(t * Math.PI * 5 + frame*0.3) * 12;
+                            let nx = -Math.sin(z.angle) * wave;
+                            let ny = Math.cos(z.angle) * wave;
+                            ctx.lineTo(bx + nx, by + ny);
+                        }
+                        ctx.stroke();
+                        
+                        // Draw the little leaves
+                        ctx.fillStyle = '#4ade80';
+                        for (let j=1; j<segments; j+=2) {
+                            let t = j/segments;
+                            let bx = startX + (endX - startX)*t;
+                            let by = startY + (endY - startY)*t;
+                            ctx.beginPath(); ctx.arc(bx, by, 7, 0, Math.PI*2); ctx.fill();
+                        }
+                    }
                 }
             }
 
@@ -612,8 +652,6 @@
                     ctx.beginPath(); ctx.arc(p.x + p.r*0.3, p.y - p.r*0.2, p.r*0.15, 0, Math.PI*2); ctx.fill();
                     ctx.strokeStyle = '#0f172a'; ctx.lineWidth = p.r * 0.15;
                     ctx.beginPath(); ctx.arc(p.x, p.y + p.r*0.1, p.r*0.4, 0, Math.PI, false); ctx.stroke();
-                } else if (p.type === 'puddle_proj') {
-                    ctx.fillStyle = '#f97316'; ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
                 } else {
                     if (p.type === 'homing') ctx.fillStyle = '#ef4444'; else ctx.fillStyle = '#facc15';
                     ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
